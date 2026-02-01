@@ -16,20 +16,26 @@
     <header>
       <h1>Admin — Staff Tracker</h1>
       <nav style="margin-top:8px">
-        <a href="/" class="link">Home</a>
+        <a href="/" class="link">Home</a> | 
+        <a href="/delete-employees.html" class="link">Delete Employees</a> | 
+        <a href="/export.html" class="link">Export Data</a>
       </nav>
     </header>
 
     <main>
       <section class="card">
-        <h2>Add Employee</h2>
-        <p class="small">Enter the admin code and new employee details. Passcodes must be unique.</p>
+        <h2>Admin Access Required</h2>
+        <p class="muted">Enter admin code to add new employees</p>
+        <label>Admin Code
+          <input id="adminCode" type="password" inputmode="numeric" maxlength="10" />
+        </label>
+        <button id="auth-btn">Continue</button>
+        <p id="auth-msg" class="muted"></p>
+      </section>
 
-        <div class="form-row">
-          <label>Admin Code
-            <input id="adminCode" type="text" />
-          </label>
-        </div>
+      <section id="add-employee-section" class="card hidden">
+        <h2>Add Employee</h2>
+        <p class="small">Enter new employee details. Passcodes must be unique.</p>
 
         <div class="form-row">
           <label>Name

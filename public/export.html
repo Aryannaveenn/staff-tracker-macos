@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Export Data - Staff Tracker</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Export Data</h1>
+      <nav style="margin-top:8px">
+        <a href="/" class="link">Home</a> | 
+        <a href="/admin.html" class="link">Add Employee</a> | 
+        <a href="/delete-employees.html" class="link">Delete Employees</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Admin Access Required</h2>
+        <p class="muted">Enter admin code to export attendance data</p>
+        <label>Admin Code
+          <input id="adminCode" type="password" inputmode="numeric" maxlength="10" />
+        </label>
+        <button id="auth-btn">Continue</button>
+        <p id="auth-msg" class="muted"></p>
+      </section>
+
+      <section id="export-section" class="card hidden">
+        <h2>Export Attendance Data</h2>
+        <p class="muted">Download a spreadsheet containing all attendance records and totals.</p>
+        
+        <div style="margin-top: 20px; padding: 16px; background: #f8f9fa; border-radius: 4px;">
+          <h3 style="margin-top: 0;">Export Includes:</h3>
+          <ul style="margin: 8px 0;">
+            <li><strong>Attendance Sheet:</strong> All clock in/out records with hours and pay</li>
+            <li><strong>Totals Sheet:</strong> Summary of total hours and pay per employee</li>
+          </ul>
+        </div>
+
+        <button id="export-btn" class="primary" style="margin-top: 20px;">
+          📥 Download Spreadsheet
+        </button>
+        <p id="export-msg" class="muted" style="margin-top: 12px;"></p>
+      </section>
+    </main>
+
+    <footer>
+      <p class="muted">Built for your business.</p>
+    </footer>
+  </div>
+  <script src="/export.js"></script>
+</body>
+</html>

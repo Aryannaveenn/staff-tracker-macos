@@ -62,12 +62,9 @@ function initDbIfNeeded() {
       }
       if (row.c === 0) {
           const stmt = db.prepare('INSERT INTO employees (name, passcode, pay_rate) VALUES (?,?,?)');
-          stmt.run('Anmol', '1111', 30.00);
-          stmt.run('Harshit', '2222', 25.50);
-          stmt.run('Shivani', '3333', 28.75);
-          stmt.run('Riya', '4444', 27.00);
+          stmt.run('Admin', '0000', 20.00);
         stmt.finalize(() => {
-          console.log('Inserted sample employees');
+          console.log('Inserted sample employee | Admin@0000');
           db.close();
         });
       } else {
@@ -85,45 +82,45 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/login', (req, res) => {
   const passcode = (req.body.passcode || '').toString();
-  if (!passcode) return res.status(400).json({ error: 'passcode required' });
+  if (!passcode) return res.status(400).json({ error: 'Please enter a passcode.' });
   const db = openDb();
   db.get('SELECT id, name FROM employees WHERE passcode = ?', [passcode], (err, row) => {
     db.close();
-    if (err) return res.status(500).json({ error: 'db error' });
-    if (!row) return res.status(401).json({ error: 'invalid passcode' });
+    if (err) return res.status(500).json({ error: 'System error. Please try again later.' });
+    if (!row) return res.status(401).json({ error: 'Invalid passcode. Please try again.' });
     res.json({ id: row.id, name: row.name });
   });
 });
 
 app.post('/api/clock', (req, res) => {
   const { employeeId, action } = req.body;
-  if (!employeeId || !action) return res.status(400).json({ error: 'employeeId and action required' });
+  if (!employeeId || !action) return res.status(400).json({ error: 'Invalid request. Please try again.' });
   const type = action === 'in' ? 'IN' : 'OUT';
   const db = openDb();
 
   // Lookup employee name and pay_rate then insert row with employee_name
   db.get('SELECT name, COALESCE(pay_rate,0) as pay_rate FROM employees WHERE id = ?', [employeeId], (err, emp) => {
-    if (err) { console.error('DB error selecting employee:', err); db.close(); return res.status(500).json({ error: 'db error' }); }
-    if (!emp) { db.close(); return res.status(404).json({ error: 'employee not found' }); }
+    if (err) { console.error('DB error selecting employee:', err); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
+    if (!emp) { db.close(); return res.status(404).json({ error: 'Employee not found. Please contact support.' }); }
 
     // Enforce one IN and one OUT per AEST day
     const { startUtc, endUtc } = getAESTDayRangeForNow();
     if (type === 'IN') {
       db.get('SELECT 1 FROM attendance WHERE employee_id = ? AND type = ? AND timestamp BETWEEN ? AND ? LIMIT 1', [employeeId, 'IN', startUtc, endUtc], (err2, exists) => {
-        if (err2) { console.error('DB error checking existing IN:', err2); db.close(); return res.status(500).json({ error: 'db error' }); }
-        if (exists) { db.close(); return res.status(400).json({ error: 'already clocked IN today' }); }
+        if (err2) { console.error('DB error checking existing IN:', err2); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
+        if (exists) { db.close(); return res.status(400).json({ error: 'You have already clocked in today.' }); }
         // proceed to insert
         db.run('INSERT INTO attendance (employee_id, employee_name, type) VALUES (?,?,?)', [employeeId, emp.name, type], function(err3) {
-          if (err3) { console.error('DB error inserting attendance:', err3); db.close(); return res.status(500).json({ error: 'db error' }); }
+          if (err3) { console.error('DB error inserting attendance:', err3); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
           const newId = this.lastID;
           // fetch the timestamp we just created
           db.get('SELECT timestamp FROM attendance WHERE id = ?', [newId], (err4, rowts) => {
-            if (err4) { console.error('DB error fetching new timestamp:', err4); db.close(); return res.status(500).json({ error: 'db error' }); }
+            if (err4) { console.error('DB error fetching new timestamp:', err4); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
 
             // If this was an OUT, try to find the last IN to compute hours and pay
             if (type === 'OUT') {
               db.get('SELECT timestamp FROM attendance WHERE employee_id = ? AND type = ? AND timestamp <= ? ORDER BY timestamp DESC LIMIT 1', [employeeId, 'IN', rowts.timestamp], (err5, inrow) => {
-                if (err5) { console.error('DB error finding previous IN:', err5); db.close(); return res.status(500).json({ error: 'db error' }); }
+                if (err5) { console.error('DB error finding previous IN:', err5); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
                 db.close();
                 const outTs = rowts && rowts.timestamp;
                 const inTs = inrow && inrow.timestamp;
@@ -150,19 +147,19 @@ app.post('/api/clock', (req, res) => {
     } else {
       // Ensure employee has clocked IN during the same AEST day before allowing OUT
       db.get('SELECT 1 FROM attendance WHERE employee_id = ? AND type = ? AND timestamp BETWEEN ? AND ? LIMIT 1', [employeeId, 'IN', startUtc, endUtc], (errIn, inExists) => {
-        if (errIn) { console.error('DB error checking IN for OUT:', errIn); db.close(); return res.status(500).json({ error: 'db error' }); }
-        if (!inExists) { db.close(); return res.status(400).json({ error: 'cannot clock OUT without clocking IN today' }); }
+        if (errIn) { console.error('DB error checking IN for OUT:', errIn); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
+        if (!inExists) { db.close(); return res.status(400).json({ error: 'Please clock in before clocking out.' }); }
 
         // check if already clocked OUT today
         db.get('SELECT 1 FROM attendance WHERE employee_id = ? AND type = ? AND timestamp BETWEEN ? AND ? LIMIT 1', [employeeId, 'OUT', startUtc, endUtc], (err2, exists) => {
-          if (err2) { console.error('DB error checking existing OUT:', err2); db.close(); return res.status(500).json({ error: 'db error' }); }
-          if (exists) { db.close(); return res.status(400).json({ error: 'already clocked OUT today' }); }
+          if (err2) { console.error('DB error checking existing OUT:', err2); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
+          if (exists) { db.close(); return res.status(400).json({ error: 'You have already clocked out today.' }); }
           // proceed to insert OUT
           db.run('INSERT INTO attendance (employee_id, employee_name, type) VALUES (?,?,?)', [employeeId, emp.name, type], function(err3) {
-            if (err3) { console.error('DB error inserting attendance (OUT):', err3); db.close(); return res.status(500).json({ error: 'db error' }); }
+            if (err3) { console.error('DB error inserting attendance (OUT):', err3); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
             const newId = this.lastID;
             db.get('SELECT timestamp FROM attendance WHERE id = ?', [newId], (err4, rowts) => {
-              if (err4) { console.error('DB error fetching timestamp after OUT insert:', err4); db.close(); return res.status(500).json({ error: 'db error' }); }
+              if (err4) { console.error('DB error fetching timestamp after OUT insert:', err4); db.close(); return res.status(500).json({ error: 'System error. Please try again later.' }); }
               db.close();
               const tsAest = formatToAEST(rowts && rowts.timestamp);
               res.json({ success: true, id: newId, type, employee_name: emp.name, timestamp: tsAest });
@@ -177,17 +174,48 @@ app.post('/api/clock', (req, res) => {
 // Admin: add employee (protected by adminCode)
 app.post('/api/admin/add-employee', (req, res) => {
   const { adminCode, name, passcode, pay_rate } = req.body || {};
-  if (adminCode !== '0123') return res.status(403).json({ error: 'forbidden' });
-  if (!name || !passcode) return res.status(400).json({ error: 'name and passcode required' });
+  if (adminCode !== '0123') return res.status(403).json({ error: 'Invalid admin code.' });
+  if (!name || !passcode) return res.status(400).json({ error: 'Please provide both name and passcode.' });
   const db = openDb();
   db.run('INSERT INTO employees (name, passcode, pay_rate) VALUES (?,?,?)', [name, passcode, Number(pay_rate) || 0], function(err) {
     db.close();
     if (err) {
-      if (err.code === 'SQLITE_CONSTRAINT') return res.status(400).json({ error: 'passcode already exists' });
+      if (err.code === 'SQLITE_CONSTRAINT') return res.status(400).json({ error: 'This passcode is already in use. Please choose another.' });
       console.error('DB error adding employee:', err);
-      return res.status(500).json({ error: 'db error' });
+      return res.status(500).json({ error: 'System error. Please try again later.' });
     }
     res.json({ id: this.lastID, name, passcode, pay_rate: Number(pay_rate) || 0 });
+  });
+});
+
+// Admin: list all employees (protected by adminCode)
+app.post('/api/admin/list-employees', (req, res) => {
+  const { adminCode } = req.body || {};
+  if (adminCode !== '0123') return res.status(403).json({ error: 'Invalid admin code.' });
+  const db = openDb();
+  db.all('SELECT id, name, passcode, pay_rate FROM employees ORDER BY name', [], (err, rows) => {
+    db.close();
+    if (err) return res.status(500).json({ error: 'System error. Please try again later.' });
+    res.json({ employees: rows });
+  });
+});
+
+// Admin: delete employee (protected by adminCode)
+app.post('/api/admin/delete-employee', (req, res) => {
+  const { adminCode, employeeId } = req.body || {};
+  if (adminCode !== '0123') return res.status(403).json({ error: 'Invalid admin code.' });
+  if (!employeeId) return res.status(400).json({ error: 'Please provide an employee ID.' });
+  const db = openDb();
+  db.run('DELETE FROM employees WHERE id = ?', [employeeId], function(err) {
+    db.close();
+    if (err) {
+      console.error('DB error deleting employee:', err);
+      return res.status(500).json({ error: 'System error. Please try again later.' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Employee not found.' });
+    }
+    res.json({ success: true, message: 'Employee deleted successfully. Attendance records have been preserved.' });
   });
 });
 
@@ -218,7 +246,7 @@ function formatToAEST(timestamp) {
   const parts = fmt.formatToParts(d).reduce((acc, p) => {
     acc[p.type] = p.value; return acc;
   }, {});
-  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+  return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 function getAESTDayRangeForNow() {
@@ -292,6 +320,31 @@ app.get('/api/export', async (req, res) => {
 
     outputRows.forEach(r => ws.addRow({ name: r.name, pay_rate: r.pay_rate, inTime: r.inTime, outTime: r.outTime, hours: r.hours, pay: r.pay }));
 
+    // Build totals per employee and add a "Totals" worksheet
+    const totalsByEmp = {};
+    outputRows.forEach(r => {
+      const n = r.name || 'Unknown';
+      if (!totalsByEmp[n]) totalsByEmp[n] = { hours: 0, pay: 0, pay_rate: r.pay_rate || 0 };
+      totalsByEmp[n].hours += Number(r.hours) || 0;
+      totalsByEmp[n].pay += Number(r.pay) || 0;
+    });
+
+    const totalsWs = wb.addWorksheet('Totals');
+    totalsWs.columns = [
+      { header: 'Employee Name', key: 'name', width: 30 },
+      { header: 'Pay Rate', key: 'pay_rate', width: 12 },
+      { header: 'Total Hours', key: 'hours', width: 12 },
+      { header: 'Total Pay', key: 'pay', width: 12 }
+    ];
+
+    Object.keys(totalsByEmp).forEach(name => {
+      const t = totalsByEmp[name];
+      // Round totals to 2 decimals
+      const totHours = Math.round((t.hours || 0) * 100) / 100;
+      const totPay = Math.round((t.pay || 0) * 100) / 100;
+      totalsWs.addRow({ name, pay_rate: t.pay_rate, hours: totHours, pay: totPay });
+    });
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="attendance.xlsx"');
     await wb.xlsx.write(res);
@@ -307,11 +360,11 @@ app.get('/api/history/:employeeId', (req, res) => {
     db.close();
     if (err) return res.status(500).json({ error: 'db error' });
 
-    // helper to get AEST date key YYYY-MM-DD
+    // helper to get AEST date key DD/MM/YYYY
     const dateKey = (ts) => {
       if (!ts) return '';
       const d = new Date(ts + 'Z');
-      const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit' });
       return fmt.format(d);
     };
 

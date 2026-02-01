@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Delete Employees - Staff Tracker</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Delete Employees</h1>
+      <nav style="margin-top:8px">
+        <a href="/" class="link">Home</a> | 
+        <a href="/admin.html" class="link">Add Employee</a> | 
+        <a href="/export.html" class="link">Export Data</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Admin Access Required</h2>
+        <p class="muted">Enter admin code to view and delete employees</p>
+        <label>Admin Code
+          <input id="adminCode" type="password" inputmode="numeric" maxlength="10" />
+        </label>
+        <button id="load-btn">Load Employees</button>
+        <p id="auth-msg" class="muted"></p>
+      </section>
+
+      <section id="employee-list-section" class="card hidden">
+        <h2>Employees</h2>
+        <p class="muted" style="color: #e74c3c; margin-bottom: 16px;">
+          ⚠️ Warning: Deleting an employee will remove them from the system, but their attendance records will be preserved.
+        </p>
+        <div id="employee-list"></div>
+      </section>
+    </main>
+
+    <footer>
+      <p class="muted">Built for your business.</p>
+    </footer>
+  </div>
+  <script src="/delete-employees.js"></script>
+</body>
+</html>

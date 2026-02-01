@@ -45,31 +45,38 @@ el('login-btn').addEventListener('click', async ()=>{
     showClock(data.name);
     refreshStatus();
   }catch(e){
-    el('login-msg').textContent = e && e.error ? e.error : 'Login failed';
+    el('login-msg').textContent = e && e.error ? e.error : 'Unable to login. Please try again.';
   }
 });
 
 el('clock-in').addEventListener('click', async ()=>{
   if (!current) return;
+  const empName = current.name;
   el('action-msg').textContent = 'Recording...';
   const res = await clock(current.id, 'in');
-  if (res && res.error) el('action-msg').textContent = res.error; else el('action-msg').textContent = 'Clocked in';
-  refreshStatus();
+  if (res && res.error) {
+    el('action-msg').textContent = `⚠️ ${res.error}`;
+  } else {
+    current = null;
+    showLogin(`✓ ${empName} clocked in successfully at ${new Date(res.timestamp).toLocaleString()}!`);
+  }
 });
 
 el('clock-out').addEventListener('click', async ()=>{
   if (!current) return;
+  const empName = current.name;
   el('action-msg').textContent = 'Recording...';
   const res = await clock(current.id, 'out');
-  if (res && res.error) el('action-msg').textContent = res.error;
-  else {
+  if (res && res.error) {
+    el('action-msg').textContent = `⚠️ ${res.error}`;
+  } else {
+    let msg = `✓ ${empName} clocked out successfully at ${new Date(res.timestamp).toLocaleString()}!`;
     if (res.session_pay !== undefined) {
-      el('action-msg').textContent = `Clocked out — earned $${(res.session_pay).toFixed(2)} (${(res.hours||0).toFixed(2)} hrs)`;
-    } else {
-      el('action-msg').textContent = 'Clocked out';
+      msg += ` Earned $${(res.session_pay).toFixed(2)} (${(res.hours||0).toFixed(2)} hrs)`;
     }
+    current = null;
+    showLogin(msg);
   }
-  refreshStatus();
 });
 
 el('view-history').addEventListener('click', async ()=>{
@@ -88,7 +95,11 @@ el('view-history').addEventListener('click', async ()=>{
         res.days.forEach(day => {
           const dEl = document.createElement('div');
           dEl.className = 'card';
-          const hdr = document.createElement('h4'); hdr.textContent = day.date; dEl.appendChild(hdr);
+          // Date is already in DD/MM/YYYY format from server
+          const [dayNum, month, year] = day.date.split('/');
+          const dateObj = new Date(`${year}-${month}-${dayNum}T00:00:00`);
+          const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+          const hdr = document.createElement('h4'); hdr.textContent = `${dayName}, ${day.date}`; dEl.appendChild(hdr);
           const table = document.createElement('table');
           table.style.width = '100%';
           table.innerHTML = '<tr><th>Clock In</th><th>Clock Out</th></tr>';
@@ -103,7 +114,7 @@ el('view-history').addEventListener('click', async ()=>{
         });
       }
     } else list.innerHTML = '<p class="muted">No history</p>';
-  }catch(err){ list.innerHTML = `<p class="muted">Error loading history</p>`; }
+  }catch(err){ list.innerHTML = `<p class="muted">Unable to load history. Please try again.</p>`; }
 });
 
 el('logout').addEventListener('click', ()=>{ current = null; showLogin(); el('action-msg').textContent = ''; el('last-status').textContent = '—'; });
